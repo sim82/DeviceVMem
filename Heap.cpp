@@ -70,7 +70,7 @@ size_t vmem::Heap::allocPage()
 	return p;
 }
 
-int main( int argc, char *argv[] ) {
+int main2( int argc, char *argv[] ) {
 	Heap h(1024, 100);
 
 	for( int i = 0; i < 100; i++ ) {
