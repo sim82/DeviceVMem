@@ -10,17 +10,16 @@
 #include "DeviceHeapModel.h"
 
 using namespace vmem;
+//#define LRU_VERBOSE
 
 DeviceHeapModel::DeviceHeapModel( int numPages ) :
  m_pageFree(numPages),
  m_pageDirty(numPages),
- m_lru(numPages),
- m_serial(0)
-
-
+ m_lrux(numPages, m_lrul.end())
 {
 	// TODO Auto-generated constructor stub
 	m_pageFree.set();
+//	m_lru2 = new int[numPages];
 }
 
 DeviceHeapModel::~DeviceHeapModel() {
@@ -38,23 +37,48 @@ void vmem::DeviceHeapModel::apply(std::vector<MemOp>  &mops)
 
 		if( mop.m_flags & MemOp::FL_R ) {
 			if( m_pageFree[mop.m_page] ) {
+				// check for read on uninitialized page -> this should be
+				// considered an error
 				printf( "ERROR: uninitialized read: %d\n", int(mop.m_page));
 			} else {
 				if( m_pageDirty[mop.m_page] ) {
 					printf( "device dirty read: %d\n", int( mop.m_page ));
  				}
 
-				m_lru[mop.m_page] = m_serial;
+
+#ifdef LRU_VERBOSE
+				printf( "push back in lru list (r): %d\n", int(mop.m_page));
+#endif
+				// push back accessed page in lru list
+				m_lrul.erase(m_lrux[mop.m_page]);
+				m_lrul.push_back(mop.m_page);
+				m_lrux[mop.m_page] = --m_lrul.end();
+
 			}
 
 
 		} else if( mop.m_flags & MemOp::FL_W ) {
-			m_pageFree.set(mop.m_page, false);
-			m_pageDirty.set(mop.m_page);
-			m_lru[mop.m_page] = m_serial;
-		}
 
-		m_serial++;
+			// set page to non-free state
+			m_pageFree.set(mop.m_page, false);
+
+			// set page dirty state
+			m_pageDirty.set(mop.m_page);
+
+			if( m_lrux[mop.m_page] != m_lrul.end() ) {
+				m_lrul.erase(m_lrux[mop.m_page]);
+#ifdef LRU_VERBOSE
+				printf( "push back in lru list (w): %d\n", int(mop.m_page));
+#endif
+			} else {
+#ifdef LRU_VERBOSE
+				printf( "introduce to lru list: %d\n", int(mop.m_page));
+#endif
+			}
+			m_lrul.push_back(mop.m_page);
+			m_lrux[mop.m_page] = --m_lrul.end();
+
+		}
 	}
 }
 
@@ -63,28 +87,27 @@ size_t vmem::DeviceHeapModel::getCandidate()
 {
 	size_t ff = m_pageFree.find_first();
 	if( ff < m_pageFree.npos ) {
+#ifdef LRU_VERBOSE
+		printf( "get candidate: return free page: %d\n", int(ff) );
+#endif
 		return ff;
 	}
 
-	size_t low_idx = 0;
-	int	low_cnt = INT_MAX;
-	for( std::vector<int>::iterator i = m_lru.begin(); i != m_lru.end(); ++i ) {
-		if( *i < low_cnt ) {
-			low_idx = i - m_lru.begin();
-			low_cnt = *i;
-		}
-	}
-	assert( low_cnt >= 0 );
-	return low_idx;
+	ff = m_lrul.front();
+#ifdef LRU_VERBOSE
+	printf( "get candidate: return lru page: %d\n", int(ff) );
+#endif
 
-
+	return ff;
 }
 
 
 int main() {
 	std::vector<MemOp> mops;
-	mops.push_back(MemOp(true, 0));
+
 	mops.push_back(MemOp(true, 1));
+	mops.push_back(MemOp(true, 0));
+
 
 	mops.push_back(MemOp(false, 0));
 	mops.push_back(MemOp(false, 1));
@@ -92,10 +115,13 @@ int main() {
 
 	DeviceHeapModel dhm(10 * 1024);
 	dhm.apply(mops);
+//	size_t c = dhm.getCandidate();
 
-	for( int i = 0; i < 100000; i++ ) {
+//	printf( "get candidate: %d\n", c);
+
+	for( int i = 0; i < 1000 * 1000; i++ ) {
 		size_t c = dhm.getCandidate();
-
+//		printf( "get candidate2: %d\n", c);
 		mops.clear();
 		mops.push_back(MemOp( true, c ));
 		dhm.apply(mops);

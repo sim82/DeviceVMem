@@ -12,6 +12,7 @@
 #include <boost/dynamic_bitset.hpp>
 #include <boost/array.hpp>
 #include <stdint.h>
+#include <list>
 
 namespace vmem {
 
@@ -41,10 +42,14 @@ struct MemOp {
 class DeviceHeapModel {
 	boost::dynamic_bitset<>	m_pageFree;
 	boost::dynamic_bitset<>	m_pageDirty;
-	std::vector<int> m_lru;
+//	std::vector<int> m_lru;
 
+//	int *m_lru2;
 
-	uint64_t	m_serial;
+//	uint64_t	m_serial;
+
+	std::list<int> m_lrul;
+	std::vector<std::list<int>::iterator> m_lrux;
 
 public:
 	DeviceHeapModel( int numPages );
