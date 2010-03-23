@@ -6,7 +6,7 @@
  */
 
 #include <stdio.h>
-
+#include <ext/pb_ds/priority_queue.hpp>
 #include "DeviceHeapModel.h"
 
 using namespace vmem;
@@ -101,8 +101,35 @@ size_t vmem::DeviceHeapModel::getCandidate()
 	return ff;
 }
 
+struct OsMember {
+	int m_obj;
+	float m_rDist;
 
-int main() {
+	OsMember( int obj, float rDist ) : m_obj(obj), m_rDist(rDist) {
+
+	}
+
+	bool operator>( const OsMember &other ) const {
+		return m_rDist > other.m_rDist;
+	}
+
+	void swap( OsMember &other ) {
+//		assert( m_obj == other.m_obj );
+		printf( "swap: %d %d\n", m_obj, other.m_obj);
+		int ot = other.m_obj;
+		float dt = other.m_rDist;
+		other.m_obj = m_obj;
+		other.m_rDist = m_rDist;
+		m_obj = ot;
+		m_rDist = dt;
+
+	}
+
+};
+
+typedef __gnu_pbds::priority_queue<OsMember,std::greater<OsMember>,__gnu_pbds::binomial_heap_tag> my_pq;
+typedef __gnu_pbds::priority_queue<int,std::greater<int>,__gnu_pbds::binomial_heap_tag> my_int_pq;
+int maindhm() {
 	std::vector<MemOp> mops;
 
 	mops.push_back(MemOp(true, 1));
@@ -126,7 +153,58 @@ int main() {
 		mops.push_back(MemOp( true, c ));
 		dhm.apply(mops);
 	}
-	printf( "done\n" );
+	printf( "done. pq2\n" );
+
+
+#if 1
+	my_pq pq;
+
+	pq.push(OsMember(1, 2.0));
+	pq.push(OsMember(2, 3.0));
+	my_pq::point_iterator it = pq.push(OsMember(3, 4.0));
+	pq.push(OsMember(4, 5.0));
+
+	pq.modify(it, OsMember(3,1.0));
+	printf( "sizeof: %d\n", int(sizeof( my_pq::point_iterator)));
+	while( !pq.empty() ) {
+		const OsMember &c = pq.top();
+
+		printf( "%d %f\n", c.m_obj, c.m_rDist );
+		pq.pop();
+	}
+
+	std::vector<int> v1;
+
+	v1.push_back(4);
+	v1.push_back(2);
+	v1.push_back(1);
+	v1.push_back(5);
+	v1.push_back(3);
+	std::sort( v1.begin(), v1.end());
+	for( int i = 0; i < v1.size(); i++ ) {
+		printf( "s: %d\n", v1[i]);
+	}
+
+
+
+#else
+	my_int_pq pq;
+
+	pq.push(2);
+	pq.push(1);
+	my_int_pq::point_iterator it = pq.push(3);
+	pq.push(5);
+
+	pq.modify(it, 7);
+
+	while( !pq.empty() ) {
+		const int &c = pq.top();
+
+		printf( "%d %f\n", c );
+		pq.pop();
+	}
+#endif
+
 }
 
 
